@@ -5,6 +5,9 @@ on:
       - 'tac_full.xlsx'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   convert:
     runs-on: ubuntu-latest
