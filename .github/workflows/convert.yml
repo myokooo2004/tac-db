@@ -14,33 +14,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download big TAC database
-        run: |
-          curl -L "https://github.com/myokooo2004/tac-database/raw/main/tac_full.xlsx" -o tac_big.xlsx
-
       - name: Install Python deps
-        run: pip install openpyxl
+        run: pip install openpyxl pandas
 
       - name: Convert to JSON
         run: |
           python3 << 'EOF'
-          import openpyxl, json
+          import pandas as pd, json
+          df = pd.read_excel('tac_full.xlsx', dtype={'TAC': str})
           result = {}
-
-          for filename in ['tac_full.xlsx', 'tac_big.xlsx']:
-              try:
-                  wb = openpyxl.load_workbook(filename, read_only=True)
-                  for ws in wb.worksheets:
-                      for row in ws.iter_rows(min_row=2, values_only=True):
-                          tac = str(row[0]).strip() if row[0] else None
-                          brand = str(row[1]).strip() if row[1] else ""
-                          model = str(row[2]).strip() if row[2] else ""
-                          if tac and len(tac) == 8 and tac.isdigit():
-                              result[tac] = {"brand": brand, "model": model}
-                  print(f"{filename}: OK")
-              except Exception as e:
-                  print(f"{filename}: {e}")
-
+          for _, row in df.iterrows():
+              tac = str(row['TAC']).strip().zfill(8)
+              brand = str(row['Brand']).strip() if pd.notna(row['Brand']) else ""
+              specs = str(row['SPECS']).strip() if pd.notna(row['SPECS']) else ""
+              model = specs.split(',')[0].strip() if specs else ""
+              if tac and len(tac) == 8 and tac.isdigit():
+                  result[tac] = {"brand": brand, "model": model}
           with open('tac.json', 'w') as f:
               json.dump(result, f, separators=(',', ':'))
           print(f"Total: {len(result)} entries")
@@ -51,5 +40,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add tac.json
-          git commit -m "Auto-generate tac.json from both sources" || echo "No changes"
+          git commit -m "Auto-generate tac.json" || echo "No changes"
           git push
